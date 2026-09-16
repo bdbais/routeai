@@ -72,10 +72,17 @@ class Node:
     models: dict[str, list[str]] = field(default_factory=dict)
     headers: dict[str, str] = field(default_factory=dict)
     api_key_env: str | None = None
+    ssh: str | None = None          # user@host[:port] or an ~/.ssh/config alias: reach Ollama through a tunnel
+    ssh_key: str | None = None      # key created by `routeai ssh-setup`; unset = your own ssh config and agent
+    remote_port: int = 11434        # where Ollama listens on the server (only on 127.0.0.1 is enough)
 
     @property
     def is_remote(self) -> bool:
         return self.type != "ollama"
+
+    @property
+    def via_ssh(self) -> bool:
+        return bool(self.ssh)
 
     @property
     def is_free(self) -> bool:
@@ -155,13 +162,13 @@ def parse_config(data: dict, source: Path | None = None) -> FleetConfig:
     fleet = data.get("fleet", {})
     nodes: list[Node] = []
     for raw in data.get("nodes", []):
-        if "name" not in raw or "url" not in raw:
-            raise ConfigError("every [[nodes]] entry needs 'name' and 'url'")
+        if "name" not in raw or not (raw.get("url") or raw.get("ssh")):
+            raise ConfigError("every [[nodes]] entry needs 'name' and either 'url' or 'ssh'")
         cost = raw.get("cost", {})
         limits = raw.get("limits", {})
         node = Node(
             name=raw["name"],
-            url=raw["url"].rstrip("/"),
+            url=(raw.get("url") or f"ssh://{raw['ssh']}").rstrip("/"),
             type=raw.get("type", "ollama"),
             send_files=bool(raw.get("send_files", False)),
             cost_input=float(cost.get("input", 0.0)),
@@ -179,11 +186,24 @@ def parse_config(data: dict, source: Path | None = None) -> FleetConfig:
             models={k: _as_list(v) for k, v in raw.get("models", {}).items()},
             headers=dict(raw.get("headers", {})),
             api_key_env=raw.get("api_key_env"),
+            ssh=raw.get("ssh") or None,
+            ssh_key=raw.get("ssh_key") or None,
+            remote_port=int(raw.get("remote_port", 11434)),
         )
         if node.tier not in TIERS:
             raise ConfigError(f"node {node.name}: tier must be one of {TIERS}")
         if node.type not in NODE_TYPES:
             raise ConfigError(f"node {node.name}: type must be one of {NODE_TYPES}")
+        if node.via_ssh:
+            from .sshtunnel import parse_target  # validated here so a bad target fails at load, not mid-task
+            if node.type != "ollama":
+                raise ConfigError(f"node {node.name}: ssh tunnels are for Ollama nodes")
+            try:
+                parse_target(node.ssh)
+            except ValueError as exc:
+                raise ConfigError(f"node {node.name}: {exc}") from None
+            if not 0 < node.remote_port < 65536:
+                raise ConfigError(f"node {node.name}: remote_port must be a TCP port")
         if node.is_remote and not node.api_key_env and not node.headers:
             raise ConfigError(f"node {node.name}: a remote provider needs api_key_env (the key itself never "
                               "belongs in fleet.toml)")

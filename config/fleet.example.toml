@@ -69,13 +69,14 @@ general = ["qwen2.5-coder:3b"]
 # docs = ["gemini-2.5-flash"]
 # general = ["gemini-2.5-flash"]
 
-# A rented Linux GPU server. Ollama has no authentication: expose it only through a VPN
-# (Tailscale/WireGuard) or an authenticating reverse proxy.
+# A remote or rented Linux GPU server, reached through SSH: Ollama stays on 127.0.0.1 over there.
+# Create it with `python run.py ssh-setup rented user@host` (asks the password once, in your terminal).
 # [[nodes]]
 # name = "rented"
-# url = "https://ollama.example.net"
+# ssh = "you@your-server"          # user@host, user@host:2222, or an ~/.ssh/config alias
+# ssh_key = "~/.routeai/ssh/id_ed25519_rented"   # omit to use your own ssh config and agent
+# remote_port = 11434
 # tier = "heavy"
-# api_key_env = "FLEET_RENTED_TOKEN"   # sent as "Authorization: Bearer <token>"
 # max_parallel = 2
 # num_ctx = 16384
 # [nodes.models]

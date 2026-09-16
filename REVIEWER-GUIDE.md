@@ -22,7 +22,7 @@ you:
 
 | Setup | What you need | What to expect |
 |---|---|---|
-| **A — two machines** (the design target) | Ollama on a GPU box and on a second computer, with `OLLAMA_HOST=0.0.0.0` on the remote one | Routing by power: heavy work on the GPU, tests/scripts/build on the slower box, batches in parallel |
+| **A — two machines** (the design target) | Ollama on a GPU box and on a second computer: `OLLAMA_HOST=0.0.0.0` on the LAN, or `python run.py ssh-setup` for a remote Linux box | Routing by power: heavy work on the GPU, tests/scripts/build on the slower box, batches in parallel |
 | **B — one machine** | Ollama on your laptop | Everything works; routing is trivial with one node. Judge the savings and the quality gates, not the routing |
 | **C — no Ollama at all** | A free API key, e.g. Gemini or Groq | `/routeai:add-ai gemini gem1`, key in an environment variable. Fast even on a thin laptop |
 

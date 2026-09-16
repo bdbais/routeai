@@ -121,7 +121,9 @@ def build_server() -> StdioServer:
     async def fleet_setup(args: dict):
         nodes = args.get("nodes") or []
         try:
-            specs = [parse_spec(f"{n['name']}={n['url']}") for n in nodes] or [(n.name, n.url) for n in rt.cfg.nodes]
+            specs = [parse_spec(f"{n['name']}={n['url']}") for n in nodes] or [
+                (n.name, n.url, {"ssh_key": n.ssh_key, "remote_port": n.remote_port} if n.via_ssh else {})
+                for n in rt.cfg.nodes if n.type == "ollama"]
         except (KeyError, TypeError, ValueError) as exc:
             raise ToolError(f"invalid node: {exc}") from None
         text, probed = await generate(specs)
@@ -154,7 +156,10 @@ def build_server() -> StdioServer:
         "properties": {
             "action": {"type": "string", "enum": ["list", "add", "remove", "enable", "disable"]},
             "name": {"type": "string", "description": "short name of the machine, e.g. gpu"},
-            "url": {"type": "string", "description": "for 'add': http://192.168.1.13:11434, or a provider base URL"},
+            "url": {"type": "string", "description": "for 'add': http://192.168.1.13:11434, a provider base URL, or "
+                    "ssh://alias (an ~/.ssh/config host the user already reaches with a key). For a server that needs "
+                    "a password the first time, the user runs `routeai ssh-setup NAME user@host` in their own "
+                    "terminal instead - never ask for a password in the chat"},
             "provider": {"type": "string", "enum": sorted(PROVIDERS),
                          "description": "for 'add' of a remote AI: fills url and the usual key variable "
                                         "(gemini, groq, openrouter, deepseek, mistral, openai, custom)"},

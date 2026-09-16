@@ -41,10 +41,16 @@ HEADER = [
 
 
 def parse_spec(spec: str) -> tuple[str, str]:
+    """NAME=http://host:11434, or NAME=ssh://user@host[:port] / NAME=ssh://alias for a machine reached through SSH."""
     name, _, url = spec.partition("=")
+    url = url.strip().rstrip("/")
+    if name and url.lower().startswith("ssh://"):
+        from .sshtunnel import parse_target
+        parse_target(url)  # raises ValueError with the reason
+        return name.strip(), url
     if not name or not url.startswith(("http://", "https://")):
-        raise ValueError(f"expected NAME=URL (e.g. gpu=http://192.168.1.13:11434), got {spec!r}")
-    return name.strip(), url.strip().rstrip("/")
+        raise ValueError(f"expected NAME=URL (e.g. gpu=http://192.168.1.13:11434 or gpu=ssh://me@server), got {spec!r}")
+    return name.strip(), url
 
 
 def size_b(info: dict) -> float:
@@ -80,11 +86,18 @@ def suggested_pulls(installed: list[dict]) -> list[dict]:
     return [c for c in CATALOG if normalize_model(c["model"]).lower() not in have]
 
 
-async def probe(name: str, url: str, node_type: str = "ollama", api_key_env: str | None = None) -> dict:
+async def probe(name: str, url: str, node_type: str = "ollama", api_key_env: str | None = None,
+                ssh_key: str | None = None, remote_port: int = 11434) -> dict:
     """Ask a machine or a provider what it can do. Providers list hundreds of models: we only report them."""
     remote = node_type != "ollama"
-    client = OpenAICompatibleClient(url, api_key_env, timeout=20) if remote else OllamaClient(url, timeout=10)
     base = {"name": name, "url": url, "type": node_type, "api_key_env": api_key_env}
+    if url.lower().startswith("ssh://") and not remote:
+        from .sshtunnel import SshOllamaClient, tunnel_for
+        ssh = url[6:]
+        base.update(ssh=ssh, ssh_key=ssh_key, remote_port=remote_port)
+        client = SshOllamaClient(tunnel_for(name, ssh, remote_port, ssh_key), timeout=15)
+    else:
+        client = OpenAICompatibleClient(url, api_key_env, timeout=20) if remote else OllamaClient(url, timeout=10)
     try:
         version = await client.version()
         installed = await client.tags()
@@ -103,7 +116,15 @@ def render(nodes: list[dict]) -> str:
     lines = list(HEADER)
     for n in nodes:
         remote = n.get("type", "ollama") != "ollama"
-        lines += ["[[nodes]]", f"name = {json.dumps(n['name'])}", f"url = {json.dumps(n['url'])}"]
+        lines += ["[[nodes]]", f"name = {json.dumps(n['name'])}"]
+        if n.get("ssh"):
+            lines.append(f"ssh = {json.dumps(n['ssh'])}          # Ollama reached through an SSH tunnel")
+            if n.get("ssh_key"):
+                lines.append(f"ssh_key = {json.dumps(n['ssh_key'])}")
+            if int(n.get("remote_port", 11434)) != 11434:
+                lines.append(f"remote_port = {int(n['remote_port'])}")
+        else:
+            lines.append(f"url = {json.dumps(n['url'])}")
         if remote:
             lines += [f'type = {json.dumps(n.get("type", "openai"))}',
                       f'api_key_env = {json.dumps(n.get("api_key_env") or "")}'
@@ -116,8 +137,12 @@ def render(nodes: list[dict]) -> str:
         if not remote:
             lines.append('keep_alive = "30m"')
         if not n["reachable"]:
-            hint = ("check the key in $" + (n.get("api_key_env") or "?") + " and the base URL") if remote else (
-                "start Ollama there with OLLAMA_HOST=0.0.0.0 and allow port 11434 on your LAN")
+            if remote:
+                hint = "check the key in $" + (n.get("api_key_env") or "?") + " and the base URL"
+            elif n.get("ssh"):
+                hint = f"run `routeai ssh-check {n['name']}` to see which stage fails"
+            else:
+                hint = "start Ollama there with OLLAMA_HOST=0.0.0.0 and allow port 11434 on your LAN"
             lines.append(f"# UNREACHABLE when generated ({n.get('error', '')[:120]}): {hint}")
         cost = n.get("cost") or {}
         if remote:
@@ -138,8 +163,9 @@ def render(nodes: list[dict]) -> str:
     return "\n".join(lines)
 
 
-async def generate(specs: list[tuple[str, str]]) -> tuple[str, list[dict]]:
-    nodes = list(await asyncio.gather(*(probe(name, url) for name, url in specs)))
+async def generate(specs: list[tuple]) -> tuple[str, list[dict]]:
+    """specs: (name, url) or (name, url, extra) where extra carries an SSH node's ssh_key and remote_port."""
+    nodes = list(await asyncio.gather(*(probe(s[0], s[1], **(s[2] if len(s) > 2 else {})) for s in specs)))
     return render(nodes), nodes
 
 
@@ -193,6 +219,14 @@ def set_node_option(text: str, name: str, key: str, value) -> str:
             head, tail = (block[:sub.start()], block[sub.start():]) if sub else (block, "")
             block = head.rstrip("\n") + f"\n{key} = {literal}\n" + (f"\n{tail}" if tail else "\n")
         return text[:start] + block + text[end:]
+    raise ValueError(f"no node named {name!r} in the configuration")
+
+
+def drop_node_option(text: str, name: str, key: str) -> str:
+    for node_name, start, end in node_blocks(text):
+        if node_name == name:
+            block = re.sub(rf"^{re.escape(key)}\s*=.*\n?", "", text[start:end], count=1, flags=re.M)
+            return text[:start] + block + text[end:]
     raise ValueError(f"no node named {name!r} in the configuration")
 
 

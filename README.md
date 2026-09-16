@@ -175,8 +175,58 @@ how new models and machines earn trust quickly.
   offloaded to the CPU.
 - **CPU-only laptops still help.** Give them small coder models (3–7B) for scripts, tests and docs, and
   `max_parallel = 1` so your own work stays responsive.
-- **Rented servers:** use `api_key_env` behind a VPN or an authenticating reverse proxy. Ollama has no
+- **Rented or remote servers:** reach them over SSH (below), not with port 11434 open. Ollama has no
   authentication of its own.
+
+## Remote machines over SSH
+
+Ollama has no authentication, so a machine outside your LAN should never expose port 11434. RouteAI reaches it
+through the SSH access you already have: Ollama keeps listening only on `127.0.0.1` over there, and each request
+travels through a tunnel that RouteAI opens, keeps alive and reopens when it drops.
+
+**First time, in your own terminal** (not through Claude: ssh asks for the password there):
+
+```
+python run.py ssh-setup linux-gpu you@your-server
+```
+
+```
+1/5  reaching you@your-server         DNS, then the SSH port
+2/5  key: created ~/.routeai/ssh/id_ed25519_linux-gpu
+3/5  installing it on you@your-server  ssh shows the server fingerprint and asks for the password
+4/5  opening the tunnel with the key alone
+5/5  saving the node
+```
+
+The password is typed into `ssh` itself and used once, to install a dedicated key; RouteAI never sees or stores
+it. The key is installed **restricted**:
+
+```
+restrict,port-forwarding,permitopen="127.0.0.1:11434",command="/bin/false" ssh-ed25519 AAAA… routeai-linux-gpu
+```
+
+so it can open this one tunnel and nothing else - no shell, no other ports. A stolen copy reaches your Ollama, not
+your server. (`--full-access` installs it without restrictions; `--remote-port` if Ollama listens elsewhere.)
+
+**Already log in with a key?** Skip all that: `python run.py ssh-setup linux-gpu gpu-box --use-ssh-config`, or add
+it from Claude with `/routeai:nodes add linux-gpu=ssh://gpu-box`. Your `~/.ssh/config`, agent and `known_hosts`
+are used as they are.
+
+In `fleet.toml` the node has `ssh` instead of `url`:
+
+```toml
+[[nodes]]
+name = "linux-gpu"
+ssh = "you@your-server"                       # or an ~/.ssh/config alias, or user@host:2222
+ssh_key = "C:/Users/you/.routeai/ssh/id_ed25519_linux-gpu"
+```
+
+When something breaks, `python run.py ssh-check linux-gpu` tests DNS, the SSH port, authentication and Ollama one
+stage at a time and says what to do. The server's fingerprint is pinned at setup: if it ever changes the tunnel
+refuses to open; after a legitimate reinstall, `python run.py ssh-forget linux-gpu` and run `ssh-setup` again.
+
+Tunnels use the system `ssh` client (OpenSSH, built into Windows 10+, macOS and Linux) with `BatchMode`, so they
+never wait for a prompt. They are closed when RouteAI exits; on Windows they die with it even if it is killed.
 
 ## Security
 
@@ -192,6 +242,9 @@ how new models and machines earn trust quickly.
 - An answer cut off at `max_output_tokens` is reported as a failure and never written over a file.
 - Requests to nodes never follow redirects, so a node's bearer token cannot be forwarded elsewhere.
 - `:cloud` models, which run on ollama.com, are never used unless `allow_cloud_models = true`.
+- SSH nodes: the password is only ever typed into `ssh` in your terminal; the dedicated key can open the tunnel to
+  Ollama and nothing else; the host fingerprint is pinned; targets that could be read as ssh options (`-o…`,
+  spaces, quotes) are refused; the local end of a tunnel listens on `127.0.0.1` only.
 - Traffic to nodes bypasses system HTTP proxies, so LAN requests are not sent through a corporate proxy.
 - The benchmark runs code written by *your* local models in a temporary folder with a timeout and a
   minimal environment. That is enough for its small, fixed prompts, but it is not a security sandbox.

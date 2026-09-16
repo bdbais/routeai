@@ -1,7 +1,7 @@
 {
   "name": "routeai",
   "displayName": "RouteAI",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Claude routes small, well-scoped coding tasks to the AIs you already have: the Ollama machines on your network and OpenAI-compatible providers (Gemini, Groq, OpenRouter, ...). Free capacity before paid, per-node quotas and budgets, parallel batches, a work queue that keeps going while Claude is paused, and a self-learning benchmark. Claude keeps the governance, you spend fewer tokens.",
   "author": {
     "name": "Bais",

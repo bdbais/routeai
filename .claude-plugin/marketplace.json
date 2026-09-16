@@ -12,7 +12,7 @@
       "name": "routeai",
       "source": "./",
       "description": "Claude routes small coding tasks to the AIs you already have: your Ollama machines and the free tiers of API providers, cheapest first, graded by a self-learning benchmark.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "category": "development",
       "homepage": "https://routeai.bais.info"
     }

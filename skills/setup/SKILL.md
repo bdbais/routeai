@@ -7,9 +7,11 @@ argument-hint: "[name=url ...]"
 Arguments: `$ARGUMENTS` — optional machines as `name=url` pairs (e.g. `gpu=http://192.168.1.13:11434`).
 
 1. **Machines.** If no arguments were given, ask the user which computers run Ollama (a short name and the URL;
-   the local one is `local=http://localhost:11434`). Remind them that on other computers Ollama must listen on the
-   network (`OLLAMA_HOST=0.0.0.0`, port 11434 open on the LAN) and must stay on the LAN or a VPN: it has no
-   authentication.
+   the local one is `local=http://localhost:11434`). Remind them that on other computers of the LAN Ollama must
+   listen on the network (`OLLAMA_HOST=0.0.0.0`, port 11434 open). For a machine outside the LAN - a remote or
+   rented Linux server - use SSH instead (Ollama has no authentication): `name=ssh://alias` if they already log in
+   with a key, otherwise have them run `run.py ssh-setup <name> <user@host>` in their own terminal (see the `nodes`
+   skill). Never ask for a password in the chat.
 2. **Probe and write.** Call `fleet_setup` with the nodes. If a configuration already exists, show the user and
    only pass `overwrite: true` after they agree (the old file is kept as a backup).
 3. **Report**, per machine: reachable or not (with the fix), installed chat models, the model chosen for each

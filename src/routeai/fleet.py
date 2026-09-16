@@ -64,6 +64,10 @@ class NodeState:
 def make_client(node: Node, timeout: float):
     if node.type == "openai":
         return OpenAICompatibleClient(node.url, node.api_key_env, node.headers, timeout)
+    if node.via_ssh:
+        from .sshtunnel import SshOllamaClient, tunnel_for
+        return SshOllamaClient(tunnel_for(node.name, node.ssh, node.remote_port, node.ssh_key),
+                               node.request_headers(), timeout)
     return OllamaClient(node.url, node.request_headers(), timeout)
 
 
@@ -315,6 +319,7 @@ class Fleet:
             used = self.spend.today(n.name)
             out.append({
                 "name": n.name, "url": n.url, "type": n.type, "free": n.is_free, "enabled": n.enabled,
+                "transport": "ssh" if n.via_ssh else "http",
                 "healthy": st.healthy, "today": used, "quota_blocked": self.spend.exhausted(n),
                 "sends_files_offsite": n.send_files if n.is_remote else False,
                 "tier": self.tier_of(n, snap), "configured_tier": n.tier, "version": st.version,

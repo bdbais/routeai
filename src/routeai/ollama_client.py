@@ -49,10 +49,19 @@ class OllamaClient:
         self.headers = headers or {}
         self.timeout = timeout
 
+    def _base(self) -> str:
+        """Where requests go. An SSH node opens (or reopens) its tunnel here."""
+        return self.base_url
+
+    def _where(self) -> str:
+        """How this node is named in error messages."""
+        return self.base_url
+
     def _call(self, method: str, path: str, body: dict | None, timeout: float) -> dict:
         data = json.dumps(body).encode("utf-8") if body is not None else None
+        base = self._base()
         req = urllib.request.Request(
-            self.base_url + path,
+            base + path,
             data=data,
             method=method,
             headers={"Content-Type": "application/json", **self.headers},
@@ -62,13 +71,16 @@ class OllamaClient:
                 raw = resp.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", "replace")[:500]
-            raise OllamaError(f"{self.base_url}{path}: HTTP {exc.code} {detail}") from None
+            raise OllamaError(f"{self._where()}{path}: HTTP {exc.code} {detail}") from None
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise OllamaError(f"{self.base_url}{path}: {exc}") from None
+            raise OllamaError(self._transport_error(path, exc)) from None
         try:
             return json.loads(raw) if raw.strip() else {}
         except json.JSONDecodeError:
-            raise OllamaError(f"{self.base_url}{path}: invalid JSON response") from None
+            raise OllamaError(f"{self._where()}{path}: invalid JSON response") from None
+
+    def _transport_error(self, path: str, exc: Exception) -> str:
+        return f"{self._where()}{path}: {exc}"
 
     async def get(self, path: str, timeout: float = 5.0) -> dict:
         return await asyncio.to_thread(self._call, "GET", path, None, timeout)

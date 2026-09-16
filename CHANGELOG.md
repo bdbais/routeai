@@ -1,6 +1,21 @@
 # Changelog
 
-## 0.2.0 — unreleased
+## 0.3.0 — 2026-09-16
+
+- **Remote machines over SSH.** A node can be `ssh = "user@host"` instead of a URL: Ollama stays on `127.0.0.1`
+  of the server and RouteAI reaches it through a tunnel it opens, keeps alive and reopens, with the system OpenSSH
+  client and no new dependency. No open port, no proxy, no token.
+- `python run.py ssh-setup NAME user@host` runs in your terminal: ssh asks for the password once, RouteAI creates a
+  dedicated ed25519 key and installs it restricted (`permitopen="127.0.0.1:11434"`, no shell), pins the server's
+  fingerprint, verifies the tunnel with the key alone and adds the node. `--use-ssh-config` reuses the keys and
+  aliases you already have; nodes can also be added as `ssh://alias` from Claude.
+- `ssh-check` diagnoses a node stage by stage (DNS, SSH port, authentication, Ollama) and every failure says what
+  to do; `ssh-forget` drops a host key after a legitimate reinstall.
+- On Windows tunnels belong to a job object, so they die with RouteAI even when it is killed; the private key gets
+  an explicit ACL, because OpenSSH ignores keys other accounts can read.
+- Fix: the usage report test assumed Windows path case folding and failed on Linux and macOS.
+
+## 0.2.0 — 2026-09-16
 
 - **RouteAI**: the plugin is no longer only about Ollama. Any OpenAI-compatible provider can join the fleet
   (Gemini, Groq, OpenRouter, DeepSeek, Mistral, OpenAI, vLLM, LM Studio): one adapter, model ids read from the
