@@ -1,0 +1,48 @@
+name: Bug report
+description: Something did not work — a crash, a wrong result, a task that went nowhere.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not paste API keys, tokens or private source code. `/routeai:status` output is safe to share.
+  - type: input
+    id: environment
+    attributes:
+      label: OS, Python and hardware
+      placeholder: "Windows 11, Python 3.13, RTX 3060 12 GB + CPU-only laptop"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: RouteAI version
+      description: Bottom of `/routeai:status`, or the `version` field in `.claude-plugin/plugin.json`.
+      placeholder: "0.2.0"
+  - type: textarea
+    id: what
+    attributes:
+      label: What you asked, what you expected, what happened
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. /routeai:setup ...
+        2. "use the fleet to ..."
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of /routeai:status
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error message or relevant output
+      render: text

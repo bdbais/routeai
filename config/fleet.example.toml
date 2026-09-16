@@ -1,0 +1,90 @@
+# routeai example configuration.
+# Copy to ~/.routeai/fleet.toml (or point ROUTEAI_CONFIG at it), or generate one with:
+#   python run.py init --node gpu=http://192.168.1.13:11434 --node laptop=http://localhost:11434
+
+[fleet]
+routing = "priority"          # priority: preferred tier first, overflow when busy · fastest: learned utility only
+prefer_free = true            # free nodes (local machines, free tiers) before paid providers
+auto_pull = false             # pull configured models that are missing on a node
+allow_cloud_models = false    # ':cloud' models run on ollama.com — your code would leave your network
+explore_rate = 0.1            # share of tasks that try an under-sampled model, so routing keeps learning
+sync_wait_s = 240             # fleet_delegate waits this long before handing back a job id
+max_file_bytes = 256000       # per input file
+preview_chars = 400           # preview returned to Claude when output goes to a file (Claude pays for every char)
+# allowed_roots = ["D:/shared/specs"]   # extra folders the server may read/write besides the project
+
+# The fast machine (GPU): gets complex/code work first.
+[[nodes]]
+name = "gpu"
+url = "http://192.168.1.13:11434"
+tier = "heavy"                # heavy | light | auto (auto = decided from measured speed)
+max_parallel = 1              # concurrent requests; also set OLLAMA_NUM_PARALLEL on that machine
+num_ctx = 8192                # fixed context: changing it per request would force model reloads
+keep_alive = "30m"
+
+[nodes.model_ctx]             # per-model context overrides
+"qwen3-coder:30b" = 16384
+
+[nodes.models]                # per category, in order of preference
+complex = ["qwen3-coder:30b", "qwen2.5-coder:14b"]
+code    = ["qwen2.5-coder:14b"]
+tests   = ["qwen2.5-coder:14b"]
+scripts = ["qwen2.5-coder:14b"]
+build   = ["qwen2.5-coder:14b"]
+docs    = ["qwen3:8b"]
+general = ["qwen3:8b"]        # also the fallback for categories not listed
+
+# A slower machine (CPU or small GPU): scripts, tests, build, docs.
+[[nodes]]
+name = "laptop"
+url = "http://localhost:11434"
+tier = "light"
+max_parallel = 1
+num_ctx = 8192
+
+[nodes.models]
+complex = []                  # empty list = never route this category here
+scripts = ["qwen2.5-coder:7b", "qwen2.5-coder:3b"]
+tests   = ["qwen2.5-coder:7b"]
+build   = ["qwen2.5-coder:7b"]
+general = ["qwen2.5-coder:3b"]
+
+# A remote provider (Gemini, Groq, OpenRouter, DeepSeek, Mistral, OpenAI, or any OpenAI-compatible endpoint).
+# The API key lives in an environment variable; only its name belongs here.
+# [[nodes]]
+# name = "gemini"
+# type = "openai"
+# url = "https://generativelanguage.googleapis.com/v1beta/openai"
+# api_key_env = "GEMINI_API_KEY"
+# send_files = false          # true only if you accept that project files leave your machine
+# tier = "heavy"
+# max_parallel = 2
+# num_ctx = 32768
+# [nodes.cost]                # USD per million tokens; 0 = free tier
+# input = 0.0
+# output = 0.0
+# [nodes.limits]              # the router stops using this node when a limit is reached
+# daily_requests = 1000
+# [nodes.models]
+# docs = ["gemini-2.5-flash"]
+# general = ["gemini-2.5-flash"]
+
+# A rented Linux GPU server. Ollama has no authentication: expose it only through a VPN
+# (Tailscale/WireGuard) or an authenticating reverse proxy.
+# [[nodes]]
+# name = "rented"
+# url = "https://ollama.example.net"
+# tier = "heavy"
+# api_key_env = "FLEET_RENTED_TOKEN"   # sent as "Authorization: Bearer <token>"
+# max_parallel = 2
+# num_ctx = 16384
+# [nodes.models]
+# complex = ["qwen3-coder:30b"]
+
+# Category tuning (defaults shown for two of them).
+# [categories.complex]
+# prefer = "heavy"            # heavy | light | any
+# max_output_tokens = 4096
+# temperature = 0.2
+# min_quality = 0.5           # after 3+ samples, skip models scoring below this
+# think = false               # enable reasoning for models that support it (slower)

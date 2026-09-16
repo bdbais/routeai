@@ -1,0 +1,14 @@
+#!/bin/sh
+# routeai launcher for macOS and Linux: runs run.py with the first Python 3.11+ it finds.
+# Set ROUTEAI_PYTHON to force a specific interpreter.
+here=$(cd "$(dirname "$0")/.." && pwd)
+for py in "$ROUTEAI_PYTHON" python3.14 python3.13 python3.12 python3.11 python3 python; do
+  [ -n "$py" ] || continue
+  command -v "$py" >/dev/null 2>&1 || continue
+  if "$py" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' 2>/dev/null; then
+    exec "$py" "$here/run.py" "$@"
+  fi
+done
+echo "routeai: no Python 3.11+ found (tried python3.14..python3.11, python3, python)." >&2
+echo "Install a recent Python or set ROUTEAI_PYTHON to its path." >&2
+exit 1

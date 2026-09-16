@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How to test RouteAI
+    url: https://github.com/bdbais/routeai/blob/main/REVIEWER-GUIDE.md
+    about: The 20-minute test plan, the known limits, and what makes a report actionable.
+  - name: Project site
+    url: https://routeai.bais.info
+    about: What it does, the architecture, and the security model — in 13 languages.

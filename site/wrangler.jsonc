@@ -1,0 +1,14 @@
+// Static showcase served by Cloudflare Workers assets on its own subdomain,
+// like the other bais.info projects. Build first: node build.mjs
+// Deploy: npx wrangler deploy   (from this folder)
+{
+  "name": "routeai-site",
+  "compatibility_date": "2026-06-01",
+  "workers_dev": false,
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  },
+  "routes": [{ "pattern": "routeai.bais.info", "custom_domain": true }]
+}

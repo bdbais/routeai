@@ -1,0 +1,24 @@
+{
+  "name": "routeai",
+  "displayName": "RouteAI",
+  "version": "0.2.0",
+  "description": "Claude routes small, well-scoped coding tasks to the AIs you already have: the Ollama machines on your network and OpenAI-compatible providers (Gemini, Groq, OpenRouter, ...). Free capacity before paid, per-node quotas and budgets, parallel batches, a work queue that keeps going while Claude is paused, and a self-learning benchmark. Claude keeps the governance, you spend fewer tokens.",
+  "author": {
+    "name": "Bais",
+    "url": "https://bais.info"
+  },
+  "homepage": "https://routeai.bais.info",
+  "repository": "https://github.com/bdbais/routeai",
+  "license": "MIT",
+  "keywords": ["ollama", "local-llm", "llm-router", "delegation", "mcp", "token-saving", "benchmark",
+               "self-hosted", "gemini", "groq", "openrouter"],
+  "mcpServers": {
+    "fleet": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/routeai",
+      "args": ["serve"],
+      "env": {
+        "ROUTEAI_PROJECT_DIR": "${CLAUDE_PROJECT_DIR}"
+      }
+    }
+  }
+}

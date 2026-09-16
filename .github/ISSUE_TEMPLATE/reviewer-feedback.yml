@@ -1,0 +1,63 @@
+name: Reviewer feedback
+description: You tried RouteAI and want to say what you found — good or bad.
+title: "[review] "
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing this. Blunt is useful; polite and vague is not.
+        The test plan is in [REVIEWER-GUIDE.md](https://github.com/bdbais/routeai/blob/main/REVIEWER-GUIDE.md).
+  - type: dropdown
+    id: setup
+    attributes:
+      label: Which setup did you use?
+      options:
+        - A — two or more Ollama machines
+        - B — one machine with Ollama
+        - C — no Ollama, an API provider only
+        - A mix
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS, Python and hardware
+      placeholder: "macOS 15.4, Python 3.12, M3 Pro 36 GB · or: Ubuntu 24.04, Python 3.11, RTX 4070 12 GB"
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of /routeai:status
+      description: Or `python run.py status`. It shows nodes, routing and savings — no file contents, no keys.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: savings
+    attributes:
+      label: Did it save you anything real?
+      description: Paste a savings line or two and say whether you believe the accounting.
+    validations:
+      required: true
+  - type: textarea
+    id: routing
+    attributes:
+      label: Did the routing match your hardware?
+      description: Which category went where, and whether that was the right call on your machines.
+  - type: textarea
+    id: doubt
+    attributes:
+      label: What made you doubt it?
+      description: Confusing moments in the first ten minutes count too.
+  - type: textarea
+    id: blockers
+    attributes:
+      label: What would you need before using it on real work?
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Quoting
+      options:
+        - label: I am fine with this feedback being quoted publicly (with a link to my profile).
