@@ -11,6 +11,7 @@ FAKE_SSH_LOG, if set, receives the argv as one JSON line per run.
 import json
 import os
 import socket
+import socketserver
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -60,5 +61,13 @@ class Ollama(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
 
-ThreadingHTTPServer(("127.0.0.1", local_port), Ollama).serve_forever()
+class Server(ThreadingHTTPServer):
+    def server_bind(self):
+        # HTTPServer.server_bind calls socket.getfqdn() before listening, which can stall for tens of seconds
+        # on CI runners without reverse DNS (macOS): bind like a plain TCP server instead.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = "127.0.0.1", self.server_address[1]
+
+
+Server(("127.0.0.1", local_port), Ollama).serve_forever()
 time.sleep(3600)

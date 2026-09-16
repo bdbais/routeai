@@ -223,6 +223,7 @@ class TunnelTests(unittest.TestCase):
         os.environ["FAKE_SSH_MODE"] = "ok"
         fleet = self.fleet()
         asyncio.run(fleet.refresh(force=True))
+        self.assertTrue(fleet.state["gpu"].healthy, fleet.state["gpu"].error)
         proc = fleet.clients["gpu"].tunnel.proc
         st.close_all()
         self.assertIsNotNone(proc.wait(timeout=10))
