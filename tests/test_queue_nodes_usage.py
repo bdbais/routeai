@@ -18,6 +18,9 @@ from routeai.config import parse_config  # noqa: E402
 from routeai.engine import TaskResult, queue_worker, usage_log  # noqa: E402
 from routeai.setup import add_node, node_blocks, remove_node, set_node_option  # noqa: E402
 
+# Windows folds path case, POSIX does not: os.path.normcase is the rule the report follows.
+PATHS_IGNORE_CASE = os.path.normcase("A") == "a"
+
 SAMPLE = '''# my fleet
 [fleet]
 routing = "priority"
@@ -157,11 +160,13 @@ class UsageReportTests(FleetHomeTest):
 
     def test_tokens_per_node_and_project_filter(self):
         now = time.time()
+        # on Windows the second row is the same project written differently; elsewhere it is the same string
+        SAME_PROJECT_OTHER_CASE = r"c:\WORK\app" if PATHS_IGNORE_CASE else r"C:\work\app"
         log = self.write_log([
             {"ts": now, "project": r"C:\work\app", "ok": True, "category": "tests", "node": "gpu",
              "model": "big:14b", "tokens_in": 1000, "tokens_out": 500, "seconds": 10.0,
              "saved": {"total": 900, "claude_input_tokens": 400, "claude_output_tokens": 500}},
-            {"ts": now, "project": r"c:\WORK\app", "ok": True, "category": "docs", "node": "laptop",
+            {"ts": now, "project": SAME_PROJECT_OTHER_CASE, "ok": True, "category": "docs", "node": "laptop",
              "model": "small:3b", "tokens_in": 200, "tokens_out": 100, "seconds": 30.0,
              "saved": {"total": -50, "claude_input_tokens": -150, "claude_output_tokens": 100}},
             {"ts": now, "project": r"C:\work\other", "ok": False, "category": "code", "node": "gpu",
@@ -183,6 +188,23 @@ class UsageReportTests(FleetHomeTest):
         self.assertEqual(everything["totals"]["tasks"], 3)
         self.assertEqual(everything["totals"]["failed"], 1)
         self.assertEqual(everything["usage_by_node"]["gpu"]["tasks"], 2)
+
+    @unittest.skipUnless(PATHS_IGNORE_CASE, "path case is only folded on Windows")
+    def test_project_filter_folds_case_on_windows(self):
+        log = self.write_log([
+            {"ts": time.time(), "project": r"C:\work\app", "ok": True, "node": "gpu", "tokens_in": 10},
+            {"ts": time.time(), "project": r"c:\WORK\APP", "ok": True, "node": "gpu", "tokens_in": 10},
+        ])
+        self.assertEqual(usage_log(log, project=r"C:\WORK\app")["totals"]["tasks"], 2)
+
+    def test_project_filter_is_exact_on_posix(self):
+        if PATHS_IGNORE_CASE:
+            self.skipTest("path case is folded on Windows")
+        log = self.write_log([
+            {"ts": time.time(), "project": "/home/me/app", "ok": True, "node": "gpu", "tokens_in": 10},
+            {"ts": time.time(), "project": "/home/me/APP", "ok": True, "node": "gpu", "tokens_in": 10},
+        ])
+        self.assertEqual(usage_log(log, project="/home/me/app")["totals"]["tasks"], 1)
 
     def test_days_window_and_untagged_rows(self):
         log = self.write_log([
