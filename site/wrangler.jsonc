@@ -19,7 +19,7 @@
     {
       "binding": "DB",
       "database_name": "routeai-community",
-      "database_id": "PLACEHOLDER-SET-BY-WRANGLER-D1-CREATE",
+      "database_id": "839044de-6236-4241-8662-9ae10705aa59",
       "migrations_dir": "migrations"
     }
   ],
