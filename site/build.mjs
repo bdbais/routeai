@@ -24,6 +24,9 @@ const shared = {
 };
 
 const template = readFileSync(join(here, "template.html"), "utf8");
+const communityTemplate = readFileSync(join(here, "community.html"), "utf8");
+// the Community page reuses the showcase's styles instead of repeating them
+const styles = /<style>([\s\S]*?)<\/style>/.exec(template)[1];
 const texts = Object.fromEntries(
   LANGS.map((code) => [code, JSON.parse(readFileSync(join(here, "i18n", `${code}.json`), "utf8"))]),
 );
@@ -42,6 +45,20 @@ if (errors.length) fail(errors);
 
 const pageUrl = (code) => (code === DEFAULT ? `${ORIGIN}/` : `${ORIGIN}/${code}/`);
 const pagePath = (code) => (code === DEFAULT ? "/" : `/${code}/`);
+const communityUrl = (code) => `${pageUrl(code)}community/`;
+const communityPath = (code) => `${pagePath(code)}community/`;
+const communityAlternates = [
+  ...LANGS.map((c) => `<link rel="alternate" hreflang="${texts[c]._meta.lang}" href="${communityUrl(c)}">`),
+  `<link rel="alternate" hreflang="x-default" href="${communityUrl(DEFAULT)}">`,
+].join("\n");
+
+// The worker fills the tables at request time: it reads these labels out of the page it serves.
+const labelsFor = (t) => JSON.stringify({
+  model: t.th_model, quant: t.th_quant, hardware: t.th_hardware, category: t.th_category,
+  score: t.th_score, speed: t.th_speed, users: t.th_users, empty: t.community_empty,
+  certified_title: t.community_certified_title, certified_text: t.community_certified_text,
+  uncertified_title: t.community_uncertified_title, uncertified_text: t.community_uncertified_text,
+});
 const alternates = [
   ...LANGS.map((c) => `<link rel="alternate" hreflang="${texts[c]._meta.lang}" href="${pageUrl(c)}">`),
   `<link rel="alternate" hreflang="x-default" href="${pageUrl(DEFAULT)}">`,
@@ -58,6 +75,7 @@ for (const code of LANGS) {
   }).join("");
   const vars = {
     ...shared,
+    community_path: communityPath(code),
     ...Object.fromEntries(Object.entries(t).filter(([k]) => k !== "_meta")),
     lang: t._meta.lang,
     dir: t._meta.dir,
@@ -77,6 +95,31 @@ for (const code of LANGS) {
   const folder = code === DEFAULT ? dist : join(dist, code);
   mkdirSync(folder, { recursive: true });
   writeFileSync(join(folder, "index.html"), html);
+
+  const labels = labelsFor(t);
+  if (labels.includes("--")) errors.push(`${code}: a Community label contains "--", which would close the HTML comment`);
+  const communityVars = {
+    ...vars,
+    styles,
+    home_path: pagePath(code),
+    community_canonical: communityUrl(code),
+    community_alternates: communityAlternates,
+    community_labels: labels,
+    community_lang_menu: LANGS.map((c) => {
+      const current = c === code ? ' aria-current="page"' : "";
+      return `<li><a href="${communityPath(c)}" hreflang="${texts[c]._meta.lang}" lang="${texts[c]._meta.lang}"${current}>${texts[c]._meta.name}</a></li>`;
+    }).join(""),
+  };
+  const communityHtml = communityTemplate.replace(/\{\{([a-z0-9_]+)\}\}/g, (m, key) => {
+    if (!(key in communityVars)) {
+      errors.push(`${code}: community template uses unknown {{${key}}}`);
+      return m;
+    }
+    return communityVars[key];
+  });
+  const communityFolder = join(folder, "community");
+  mkdirSync(communityFolder, { recursive: true });
+  writeFileSync(join(communityFolder, "index.html"), communityHtml);
 }
 if (errors.length) fail(errors);
 
@@ -85,10 +128,10 @@ writeFileSync(join(dist, "robots.txt"), `User-agent: *\nAllow: /\nSitemap: ${ORI
 writeFileSync(
   join(dist, "sitemap.xml"),
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
-    LANGS.map((c) => `  <url><loc>${pageUrl(c)}</loc></url>`).join("\n") +
+    LANGS.flatMap((c) => [`  <url><loc>${pageUrl(c)}</loc></url>`, `  <url><loc>${communityUrl(c)}</loc></url>`]).join("\n") +
     `\n</urlset>\n`,
 );
-console.log(`site built: ${LANGS.length} languages, version ${version} -> ${dist}`);
+console.log(`site built: ${LANGS.length} languages + Community pages, version ${version} -> ${dist}`);
 
 function fail(list) {
   console.error(list.join("\n"));

@@ -417,6 +417,10 @@ def _grade_extract(answer: str) -> tuple[float, str]:
     return (4 - len(failed)) / 4, "wrong: " + ", ".join(failed) if failed else "all fields"
 
 
+# Bump when a task or a grader changes: scores from different suites are not comparable, and the
+# community statistics refuse to mix them.
+SUITE_VERSION = "2026.09"
+
 TASKS: list[BenchTask] = [
     BenchTask("ttl_cache", "complex", TTL_PROMPT, lambda a: check_module(a, TTL_CHECKS), "solution.py", max_tokens=2048),
     BenchTask("expr_eval", "complex", EXPR_PROMPT, _grade_expr, "solution.py", quick=False, max_tokens=2048),

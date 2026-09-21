@@ -228,6 +228,31 @@ refuses to open; after a legitimate reinstall, `python run.py ssh-forget linux-g
 Tunnels use the system `ssh` client (OpenSSH, built into Windows 10+, macOS and Linux) with `BatchMode`, so they
 never wait for a prompt. They are closed when RouteAI exits; on Windows they die with it even if it is killed.
 
+## Sharing what you measured
+
+The benchmark tells you what runs well on *your* machines. <https://routeai.bais.info/community/> collects what
+people chose to share, so a newcomer can see what a 12 GB GPU or a CPU-only laptop really gets out of a given
+model and quantisation — something no public leaderboard measures.
+
+Sending is manual, opt-in and one command:
+
+```
+python run.py send-stats            # prints everything it would send, then asks
+python run.py send-stats --dry-run  # prints it and sends nothing
+python run.py send-stats --delete   # removes your results from the site
+```
+
+What travels: model tag, quantisation, parameter size, context, a hardware bucket (`cpu`, `gpu12`, …), category,
+score, tokens per second, GPU offload ratio, run count, plugin version, operating system name. What never
+travels: machine names, addresses, file paths, prompts, instructions, project data. The payload is built field by
+field from a fixed list, so nothing can leak into it by accident later.
+
+Two lists are kept apart. **Certified** results come from an installation signed in with GitHub (device flow, in
+your terminal: RouteAI receives the account id, stores it only as a keyed hash, and discards the token). **Not
+certified** results are anonymous — useful, but nothing stops one person from sending again from a fresh install.
+Either way the numbers are self-reported, results far out of scale are flagged and left out of the medians, and
+repeated abuse is blocked. IP addresses are never stored: they are counted for a day to limit floods.
+
 ## Security
 
 - Provider keys are read from environment variables only: they are never written to `fleet.toml`, never
@@ -242,6 +267,8 @@ never wait for a prompt. They are closed when RouteAI exits; on Windows they die
 - An answer cut off at `max_output_tokens` is reported as a failure and never written over a file.
 - Requests to nodes never follow redirects, so a node's bearer token cannot be forwarded elsewhere.
 - `:cloud` models, which run on ollama.com, are never used unless `allow_cloud_models = true`.
+- Nothing is ever sent to the internet unless you run `send-stats` yourself, and that command prints the
+  whole payload and asks before sending.
 - SSH nodes: the password is only ever typed into `ssh` in your terminal; the dedicated key can open the tunnel to
   Ollama and nothing else; the host fingerprint is pinned; targets that could be read as ssh options (`-o…`,
   spaces, quotes) are refused; the local end of a tunnel listens on `127.0.0.1` only.

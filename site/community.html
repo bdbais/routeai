@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="{{lang}}" dir="{{dir}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{meta_community_title}}</title>
+<meta name="description" content="{{meta_community_description}}">
+<meta name="color-scheme" content="light dark">
+<meta property="og:title" content="RouteAI">
+<meta property="og:description" content="{{meta_community_description}}">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="{{og_locale}}">
+<meta property="og:url" content="{{community_canonical}}">
+<link rel="canonical" href="{{community_canonical}}">
+{{community_alternates}}
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230a6ed1'/><path d='M50 30 28 70M50 30l22 40M28 70h44' stroke='white' stroke-width='7' fill='none' stroke-linecap='round'/><circle cx='50' cy='30' r='11' fill='white'/><circle cx='28' cy='70' r='9' fill='white'/><circle cx='72' cy='70' r='9' fill='white'/></svg>">
+<style>
+{{styles}}
+main{padding:34px 0 10px}
+main .lede{margin:0 0 20px; max-width:74ch; font-size:17px}
+.table-wrap{overflow-x:auto; margin:14px 0 26px}
+h1{font-size:clamp(1.7rem,4vw,2.4rem); margin:0 0 10px}
+table.community{width:100%; border-collapse:collapse; min-width:620px; font-size:14.5px}
+table.community th,table.community td{border-bottom:1px solid var(--border); padding:9px 10px; text-align:start}
+table.community th{color:var(--fg-muted); font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.03em}
+table.community td.m{font-family:ui-monospace,Consolas,monospace; font-size:13px}
+table.community td.n{text-align:end; font-variant-numeric:tabular-nums}
+table.community .dim{color:var(--fg-muted)}
+@media(max-width:700px){ table.community{font-size:13px} table.community th,table.community td{padding:7px 6px} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="logo" href="{{home_path}}">
+      <svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#0a6ed1"/><path d="M50 30 28 70M50 30l22 40M28 70h44" stroke="white" stroke-width="7" fill="none" stroke-linecap="round"/><circle cx="50" cy="30" r="11" fill="white"/><circle cx="28" cy="70" r="9" fill="white"/><circle cx="72" cy="70" r="9" fill="white"/></svg>
+      RouteAI
+    </a>
+    <span class="spacer"></span>
+    <a class="link" href="{{home_path}}">{{community_back}}</a>
+    <details class="lang">
+      <summary aria-label="{{lang_label}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>{{lang_name}}</span></summary>
+      <ul>{{community_lang_menu}}</ul>
+    </details>
+    <a class="btn btn-primary btn-sm" href="{{repo_url}}">
+      <span>GitHub</span>
+    </a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>{{community_title}}</h1>
+    <p class="lede">{{community_lede}}</p>
+
+    <!--ROUTEAI_LABELS {{community_labels}}-->
+    <!--ROUTEAI_COMMUNITY-->
+
+    <h3 class="sub">{{community_how_title}}</h3>
+    <p class="note">{{community_how_text}}</p>
+    <h3 class="sub">{{community_privacy_title}}</h3>
+    <p class="note">{{community_privacy_text}}</p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>{{footer_disclaimer}}</span>
+    <nav>
+      <a href="{{repo_url}}">GitHub</a>
+      <a href="{{repo_url}}/blob/main/LICENSE">{{footer_license}}</a>
+      <a href="{{donate_url}}">PayPal</a>
+      <a href="https://bais.info">bais.info</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

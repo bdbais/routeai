@@ -16,3 +16,7 @@ Thumbs.db
 desktop.ini
 *.tmp
 .claude/
+
+# local worker secrets
+site/.dev.vars
+site/.wrangler/

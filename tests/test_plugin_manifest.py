@@ -59,7 +59,8 @@ class ManifestTests(unittest.TestCase):
 
     def test_skills_frontmatter(self):
         skills = sorted((ROOT / "skills").glob("*/SKILL.md"))
-        self.assertEqual([s.parent.name for s in skills], ["add-ai", "bench", "delegate", "nodes", "queue", "setup", "status", "usage"])
+        self.assertEqual([s.parent.name for s in skills], ["add-ai", "bench", "delegate", "nodes", "queue", "send-stats", "setup", "status",
+                          "usage"])
         for path in skills:
             text = path.read_text(encoding="utf-8")
             m = re.match(r"^---\n(.*?)\n---\n", text, re.S)

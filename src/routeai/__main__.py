@@ -1,4 +1,4 @@
-"""Command line: `python run.py [serve|status|bench|nodes|usage|queue|init|ssh-setup|ssh-check|ssh-forget]`."""
+"""Command line: `python run.py [serve|status|bench|nodes|usage|queue|init|ssh-*|send-stats]`."""
 
 from __future__ import annotations
 
@@ -170,6 +170,136 @@ async def _queue(args) -> int:
     handled = await queue_worker(engine_for, once=args.once)
     print(f"finished {handled} queued task(s)")
     return 0
+
+
+def _ask_vram(node: str) -> int:
+    from .community import VRAM_BUCKETS
+
+    print(f"     how much VRAM does the GPU of '{node}' have, in GB? {list(VRAM_BUCKETS)}")
+    try:  # a closed stdin can still report isatty(): ask, but never crash
+        answer = input("     GB (empty to skip this machine): ").strip()
+    except EOFError:
+        return 0
+    return int(answer) if answer.isdigit() else 0
+
+
+async def _send_stats(args) -> int:
+    """Manual, never automatic: build the payload, show it, ask, then send."""
+    from . import community as com
+    from .bench.suite import SUITE_VERSION
+    from .config import load_config
+
+    state = com.load_state()
+    if args.status:
+        if not state:
+            print("nothing shared from this machine yet")
+            return 0
+        print(f"install registered on {SITE_LABEL}: "
+              f"{'certified (GitHub)' if state.get('certified') else 'not certified'}")
+        print(f"declared hardware: {state.get('hardware') or '(none yet)'}")
+        return 0
+    if args.forget:
+        com.forget_state()
+        print("local identity removed; your results on the site are untouched (use --delete for those)")
+        return 0
+    if args.delete:
+        if not state.get("install_token"):
+            print("nothing to delete: this machine never sent anything", file=sys.stderr)
+            return 1
+        answer = com.delete(state)
+        print(f"deleted {answer.get('deleted', 0)} result(s) from {com.SITE}")
+        return 0
+
+    report_path = fleet_home() / "reports" / "latest.json"
+    if not report_path.exists():
+        print("no benchmark report yet: run /routeai:bench first", file=sys.stderr)
+        return 1
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    if report.get("suite_version") != SUITE_VERSION:
+        print(f"this benchmark report comes from another suite ({report.get('suite_version') or 'unversioned'}): "
+              "run /routeai:bench again so the results can be compared with everyone else's", file=sys.stderr)
+        return 1
+    cfg = load_config()
+
+    hardware = dict(state.get("hardware") or {})
+    for pair in args.vram or []:
+        node, _, gb = pair.partition("=")
+        if not gb.isdigit():
+            print(f"expected --vram NODE=GB, got {pair!r}", file=sys.stderr)
+            return 2
+        hardware[node.strip()] = int(gb)
+    for node in com.nodes_needing_vram(report):
+        if not hardware.get(node):
+            if not sys.stdin.isatty():
+                print(f"the GPU size of '{node}' is unknown: pass --vram {node}=12 (in GB)", file=sys.stderr)
+                return 2
+            hardware[node] = _ask_vram(node)
+    hardware = {k: v for k, v in hardware.items() if v}
+
+    try:
+        payload = com.build_payload(report, cfg, hardware, suite_versions=(SUITE_VERSION,))
+    except com.CommunityError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+
+    print(f"This is everything that would be sent to {com.SITE} - no machine names, addresses, paths, "
+          "prompts or project data:\n")
+    print(json.dumps(payload, indent=2))
+    print("\n" + com.summarise(payload))
+    if args.dry_run:
+        print("\n--dry-run: nothing was sent")
+        return 0
+
+    if state.get("install_token") and not (args.login and not state.get("certified")):
+        pass  # already registered
+    else:
+        github_token = None
+        if not args.anonymous:
+            if not sys.stdin.isatty():
+                print("signing in with GitHub needs your own terminal; use --anonymous to send without it",
+                      file=sys.stderr)
+                return 2
+            print("\nSigning in with GitHub (your results go in the certified statistics):")
+            try:
+                github_token = com.sign_in_with_github()
+            except com.CommunityError as exc:
+                print(f"     NO  {exc}", file=sys.stderr)
+                return 1
+        try:
+            registered = com.register(github_token, state)
+        except com.CommunityError as exc:
+            print(exc, file=sys.stderr)
+            return 1
+        state = com.load_state()
+        print(f"     registered as {'certified' if registered.get('certified') else 'not certified'}")
+
+    state["hardware"] = hardware
+    com.save_state(state)
+    if not args.yes:
+        if not sys.stdin.isatty():
+            print("add --yes to confirm the send", file=sys.stderr)
+            return 2
+        try:
+            confirmed = input(f"\nSend these results to {com.SITE}? [yes/no] ").strip().lower()
+        except EOFError:
+            print("add --yes to confirm the send", file=sys.stderr)
+            return 2
+        if confirmed not in ("yes", "y"):
+            print("nothing was sent")
+            return 0
+    try:
+        answer = com.send(payload, state)
+    except com.CommunityError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    print(f"sent: {answer.get('accepted', 0)} result(s) published as "
+          f"{'certified' if answer.get('certified') else 'not certified'}"
+          + (f", {answer['outliers']} flagged as out of scale" if answer.get("outliers") else ""))
+    print(f"they appear on {com.SITE}/community/ - remove them any time with `send-stats --delete`")
+    return 0
+
+
+SITE_LABEL = "routeai.bais.info"
 
 
 def _stage(ok: bool, label: str, detail: str) -> None:
@@ -344,6 +474,15 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("name")
     f = sub.add_parser("ssh-forget", help="forget a server's host key after reinstalling it")
     f.add_argument("name")
+    ss = sub.add_parser("send-stats", help="share your benchmark results on routeai.bais.info (manual, opt-in)")
+    ss.add_argument("--dry-run", action="store_true", help="print exactly what would be sent, send nothing")
+    ss.add_argument("--yes", action="store_true", help="skip the confirmation (the payload is still printed)")
+    ss.add_argument("--anonymous", action="store_true", help="send without signing in: uncertified statistics")
+    ss.add_argument("--login", action="store_true", help="sign in with GitHub to certify an existing install")
+    ss.add_argument("--vram", action="append", metavar="NODE=GB", help="GPU size of a machine, e.g. gpu=12")
+    ss.add_argument("--delete", action="store_true", help="remove this machine's results from the site")
+    ss.add_argument("--forget", action="store_true", help="forget the local install token")
+    ss.add_argument("--status", action="store_true", help="show what this machine registered")
     i = sub.add_parser("init", help="write a starter fleet.toml by probing nodes")
     i.add_argument("--node", action="append", metavar="NAME=URL")
     i.add_argument("--force", action="store_true")
@@ -369,6 +508,8 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(_ssh_check(args))
     if args.cmd == "ssh-forget":
         return _ssh_forget(args)
+    if args.cmd == "send-stats":
+        return asyncio.run(_send_stats(args))
     return asyncio.run(_init(args))
 
 

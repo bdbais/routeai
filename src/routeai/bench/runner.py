@@ -18,8 +18,9 @@ from ..config import fleet_home, is_cloud_model, normalize_model
 from ..fleet import Candidate, Fleet
 from ..ollama_client import OllamaError
 from ..prompts import extract_file_content, strip_thinking, system_prompt
+from .. import __version__
 from ..stats import Stats
-from .suite import BenchTask, select_tasks
+from .suite import SUITE_VERSION, BenchTask, select_tasks
 
 EXPLORE_MAX_BYTES = 20e9
 WEAK_SCORE = 0.4
@@ -182,8 +183,15 @@ def build_report(fleet: Fleet, rows: list[Row], gpu: dict[str, float], profiles:
     table = []
     for (node, model, cat), rs in sorted(groups.items()):
         ok = [r for r in rs if not r.error]
+        # what the model was when it was measured: a Q4 14B with an 8k context is not the same thing as
+        # the same name served full precision elsewhere
+        details = fleet.state[node].installed.get(normalize_model(model).lower(), {}).get("details") or {}
+        node_cfg = fleet.cfg.node(node)
         table.append({
             "node": node, "model": model, "category": cat,
+            "quant": details.get("quantization_level") or "unknown",
+            "params": details.get("parameter_size") or "",
+            "num_ctx": node_cfg.ctx_for(model) if node_cfg else 0,
             "score": round(statistics.mean(r.score for r in rs), 3),
             "gen_tps": round(statistics.mean(r.gen_tps for r in ok), 1) if ok else 0.0,
             "seconds": round(statistics.mean(r.seconds for r in rs), 1),
@@ -253,6 +261,8 @@ def build_report(fleet: Fleet, rows: list[Row], gpu: dict[str, float], profiles:
     advice = bench_advice(fleet)
     report = {
         "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "suite_version": SUITE_VERSION,
+        "routeai_version": __version__,
         "mode": mode, "explore": explore, "tasks_run": len(rows),
         "table": table,
         "best_per_category": {c: f"{r['model']} @ {r['node']} ({r['score']:.0%}, {r['gen_tps']} tok/s)" for c, r in sorted(best.items())},

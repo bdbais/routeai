@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.0 — 2026-09-21
+
+- **`send-stats`**: share your benchmark results on <https://routeai.bais.info/community/>, by hand and only if
+  you want to. The command prints the exact payload, asks, and `--delete` takes it down again. The payload is
+  built from a fixed list of fields, so machine names, addresses, paths and prompts cannot leak into it.
+- Results are published in two separate lists: **certified** (the install is signed in with GitHub through the
+  device flow, so a block costs something) and **not certified** (anonymous). Both are visibly self-reported,
+  with the number of contributors next to every line.
+- The site gained a Community page in all 13 languages, served by a small Cloudflare Worker over D1: medians per
+  model, quantisation, hardware bucket and category. No JavaScript, same strict policy as the rest of the site.
+- Moderation: speeds far out of scale are flagged and excluded from the medians, three flagged submissions in a
+  month earn an automatic 7-day block, and `scripts/stats-admin.py` bans or unbans a submitter by hand. IP
+  addresses are never stored, only counted for a day.
+- The benchmark report now records quantisation, parameter size, context and the suite version, so results from
+  different people can be compared at all.
+
 ## 0.3.0 — 2026-09-16
 
 - **Remote machines over SSH.** A node can be `ssh = "user@host"` instead of a URL: Ollama stays on `127.0.0.1`

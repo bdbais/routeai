@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "routeai"
-version = "0.3.0"
+version = "0.4.0"
 description = "Delegate small coding tasks from Claude to your own Ollama machines, with priority routing and a self-learning benchmark."
 readme = "README.md"
 license = "MIT"
